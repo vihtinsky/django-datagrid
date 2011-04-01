@@ -2,8 +2,32 @@ class ManagerAdapter(object):
     objects=None
 
 class QuerySetAdapter(object):
-    def distinct(self, true_or_false=True):
-        return self
+    pass
+
+
+class DjangoQuerySetAdapter(QuerySetAdapter):
+    """Decorator to use django query sets"""
+
+    def __init__( self, subject ):
+        self.__subject = subject
+
+    def __getattr__( self, name ):
+        return getattr( self.__subject, name )
+
+    def extra_sort(self, *field_names):
+        if not field_names:
+            return self
+        field = field_names[0]
+        if field.keys()[0].startswith("-"):
+            f = field.keys()[0]
+            select = {f[1:]:field[f]}
+            self.__subject = self.__subject.extra(select=select)
+        else:
+            self.__subject = self.__subject.extra(select=field)
+
+        self.__subject = self.__subject.extra(order_by=field.keys())
+        return self.__subject
+
 
 class DictionaryQuerySetAdapter(QuerySetAdapter):
     """Decorator to use datagrids with list of dictonaries"""
@@ -17,6 +41,9 @@ class DictionaryQuerySetAdapter(QuerySetAdapter):
             i = self.list[items]
             return Struct(**i)
         self.list = self.list.__getitem__(items)
+        return self
+
+    def distinct(self, true_or_false=True):
         return self
 
     def count(self):
@@ -51,6 +78,8 @@ class DictionaryQuerySetAdapter(QuerySetAdapter):
                                reverse=reverse)
         return self
 
+    def extra_sort(self, *field_names):
+        return self
 
 class Struct:
     def __init__(self, **entries):

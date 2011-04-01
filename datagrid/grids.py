@@ -12,7 +12,7 @@ from django.utils.translation import ugettext as _
 from django.views.decorators.cache import cache_control
 from django.db.models import Q
 from django.db.models.query import QuerySet, ValuesQuerySet
-from .adapters import QuerySetAdapter, DictionaryQuerySetAdapter
+from .adapters import *
 import StringIO
 
 
@@ -236,6 +236,10 @@ class Column(object):
             return value
 
 class NonDatabaseColumn(Column):
+    def __init__(self, label="", extra_sort=False, *args, **kwargs):
+        Column.__init__(self, label, *args, **kwargs)
+        self.db_field = False
+        self.extra_sort = extra_sort
     def render_data(self, obj):
         if self.data_func:
             return self.data_func(obj)
@@ -313,8 +317,10 @@ class DataGrid(object):
             self.queryset = queryset
         elif isinstance(queryset, list):
             self.queryset = DictionaryQuerySetAdapter(queryset)
-        elif isinstance(queryset,QuerySet) or isinstance(queryset, ValuesQuerySet):
-            self.queryset = queryset
+        elif isinstance(queryset,QuerySet):
+            self.queryset = DjangoQuerySetAdapter(queryset)
+        elif isinstance(queryset, ValuesQuerySet):
+            self.queryset = DjangoQuerySetAdapter(queryset)
         else:
             raise Exception("Unsupported Query Type")
 
@@ -364,10 +370,11 @@ class DataGrid(object):
                 if not column.field_name:
                     column.field_name = column.id
 
-                if not column.db_field:
+                if not column.db_field and \
+                  not isinstance(column, NonDatabaseColumn):
                     column.db_field = column.field_name
-
-                self.db_field_map[column.id] = column.db_field
+                if column.db_field:
+                    self.db_field_map[column.id] = column.db_field
 
         self.all_columns.sort(key=lambda x: x.creation_counter)
         self.columns = self.all_columns
@@ -535,6 +542,7 @@ class DataGrid(object):
         use_select_related = False
         # Generate the actual list of fields we'll be sorting by
         sort_list = []
+        extra_sort_list = []
         for sort_item in self.sort_list:
             if sort_item[0] == "-":
                 base_sort_item = sort_item[1:]
@@ -554,9 +562,14 @@ class DataGrid(object):
                 # spanning tables.
                 if '.' in db_field:
                     use_select_related = True
-
+            else:
+                column = getattr(self,base_sort_item)
+                if column.extra_sort:
+                    extra_sort_list.append({sort_item:column.extra_sort})
         if sort_list:
             query = query.order_by(*sort_list)
+        if extra_sort_list:
+            query = query.extra_sort(*extra_sort_list)
         self.paginator = Paginator(query, self.paginate_by,
                                            self.paginate_orphans)
         page_num = self.request.GET.get('page', 1)
@@ -604,8 +617,10 @@ class DataGrid(object):
         else:
             # Grab the whole list at once. We know it won't be too large,
             # and it will prevent one query per row.
-
-            object_list = list(self.page.object_list)
+            if isinstance(self.page.object_list, ValuesQuerySet):
+                object_list = [ Struct(**i) for i in self.page.object_list ]
+            else:
+                object_list = list(self.page.object_list)
 
         for obj in object_list:
             self.rows.append({

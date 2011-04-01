@@ -61,7 +61,8 @@ class DataGridWithValuesQuery(DataGrid):
     objid = Column("ID", link=True, sortable=True, field_name="id")
     name = Column("Group Name", link=True, sortable=True, expand=True)
     custom = NonDatabaseColumn("Second Title",
-                               sortable=True, data_func=id_mod_4, link=True)
+                               sortable=True, data_func=id_mod_4, link=True,
+                               extra_sort = "id-id/4*4" )
     def __init__(self, request):
         DataGrid.__init__(self, request, Group.objects.values(), "All Groups")
         self.default_sort = "objid"
@@ -73,7 +74,9 @@ class DataGridWithNoDbColumns(DataGrid):
     objid = Column("ID", link=True, sortable=True, field_name="id")
     name = Column("Group Name", link=True, sortable=True, expand=True)
     custom = NonDatabaseColumn("Second Title",
-                               sortable=True, data_func=id_mod_4, link=True)
+                               sortable=True, data_func=id_mod_4, link=True,
+                               extra_sort = "id-id/4*4"
+                               )
     def __init__(self, request):
         DataGrid.__init__(self, request, Group.objects.all(), "All Groups")
         self.default_sort = "objid"
@@ -81,7 +84,10 @@ class DataGridWithNoDbColumns(DataGrid):
             "objid", "name"
         ]
 
-
+class DataGridWithNoDbColumnsNoExtra (DataGridWithNoDbColumns):
+    custom = NonDatabaseColumn("Second Title",
+                               sortable=True, data_func=id_mod_4, link=True,
+                               )
 class GroupDataGrid(DataGrid):
     objid = Column("ID", link=True, sortable=True, field_name="id")
     name = Column("Group Name", link=True, sortable=True, expand=True)
@@ -165,9 +171,40 @@ class DataGridTest(TestCase):
         # Exercise the code paths when rendering
         self.datagrid.render_listview()
 
-#class GridWithNoDbColumnsTest(DataGridTest):
-#    grid_class = DataGridWithNoDbColumns
-#class DataGridWithValuesQueryTest(DataGridTest):
-#    grid_class = DataGridWithValuesQuery
+class GridWithNoDbColumnsTest(DataGridTest):
+    grid_class = DataGridWithNoDbColumns
+
+    def testSortNoDbAscending(self):
+        """Testing datagrids with ascending sort"""
+        self.request.GET['sort'] = "custom"
+        self.datagrid.load_state()
+        self.assertEqual(self.datagrid.sort_list, ["custom"])
+        self.assertEqual(len(self.datagrid.rows), self.datagrid.paginate_by)
+        self.assertEqual(self.datagrid.rows[0]['object'].name, "Group 04")
+        self.assertEqual(self.datagrid.rows[1]['object'].name, "Group 08")
+        self.assertEqual(self.datagrid.rows[2]['object'].name, "Group 12")
+
+        # Exercise the code paths when rendering
+        self.datagrid.render_listview()
+
+    def testSortNoDbDescending(self):
+        """Testing datagrids with ascending sort"""
+        self.request.GET['sort'] = "-custom"
+        self.datagrid.load_state()
+        self.assertEqual(self.datagrid.sort_list, ["-custom"])
+        self.assertEqual(len(self.datagrid.rows), self.datagrid.paginate_by)
+        self.assertEqual(self.datagrid.rows[0]['object'].name, "Group 03")
+        self.assertEqual(self.datagrid.rows[1]['object'].name, "Group 07")
+        self.assertEqual(self.datagrid.rows[2]['object'].name, "Group 11")
+
+        # Exercise the code paths when rendering
+        self.datagrid.render_listview()
+
+class GridWithNoDbColumnsTestWithNoExtra(DataGridTest):
+    grid_class = DataGridWithNoDbColumnsNoExtra
+
+class DataGridWithValuesQueryTest(GridWithNoDbColumnsTest):
+    grid_class = DataGridWithValuesQuery
+
 class GridDictionaryTest(DataGridTest):
     grid_class = DataGridWithDictonaryData
