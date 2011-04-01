@@ -16,7 +16,10 @@ class DataGridWithDictonaryData(DataGrid):
     objid = Column("ID", link=True, sortable=True, field_name="id")
     name = Column("Group Name", link=True, sortable=True, expand=True)
     custom = NonDatabaseColumn("Second Title",
-                               sortable=True, data_func=non_db_col_value, link=True)
+                               sortable=True, data_func=non_db_col_value,
+                               link=True,
+                               extra_sort="id-id/4*4",
+                               )
     def __init__(self, request):
         DataGrid.__init__(self, request, Group.objects.values(), "All Groups")
         self.default_sort = "objid"
