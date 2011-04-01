@@ -11,7 +11,8 @@ from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext as _
 from django.views.decorators.cache import cache_control
 from django.db.models import Q
-
+from django.db.models.query import QuerySet, ValuesQuerySet
+from .adapters import QuerySetAdapter, DictionaryQuerySetAdapter
 import StringIO
 
 
@@ -98,7 +99,7 @@ class Column(object):
 
         if self.sortable:
             sort_list = self.datagrid.sort_list
-            
+
             if sort_list:
                 rev_column_id = "-%s" % self.id
                 new_column_id = self.id
@@ -193,7 +194,7 @@ class Column(object):
                 url = self.link_func(obj, rendered_data)
             except AttributeError:
                 pass
-        
+
         self.label = self.label or ' '.join(self.id.split('_')).title()
         return mark_safe(render_to_string(self.datagrid.cell_template, {
             'MEDIA_URL': settings.MEDIA_URL,
@@ -305,10 +306,18 @@ class DataGrid(object):
                                     The default is True.
     """
     def __init__(self, request, queryset, title="", extra_context={},
-                 optimize_sorts=True, listview_template='datagrid/listview.html', 
+                 optimize_sorts=True, listview_template='datagrid/listview.html',
                  column_header_template='datagrid/column_header.html', cell_template='datagrid/cell.html'):
         self.request = request
-        self.queryset = queryset
+        if isinstance(queryset, QuerySetAdapter):
+            self.queryset = queryset
+        elif isinstance(queryset, list):
+            self.queryset = DictionaryQuerySetAdapter(queryset)
+        elif isinstance(queryset,QuerySet) or isinstance(queryset, ValuesQuerySet):
+            self.queryset = queryset
+        else:
+            raise Exception("Unsupported Query Type")
+
         self.rows = []
         self.columns = []
         self.all_columns = []
@@ -359,14 +368,14 @@ class DataGrid(object):
                     column.db_field = column.field_name
 
                 self.db_field_map[column.id] = column.db_field
-        
+
         self.all_columns.sort(key=lambda x: x.creation_counter)
         self.columns = self.all_columns
 
         # self.default_columns = [el.label or ' '.join(el.id.split()).title() for el in self.all_columns]#TODO:FOR now
         # self.default_sort = self.default_columns[0]
         self.default_sort = self.all_columns[0].id
-        
+
         #Get the meta fields
         meta = getattr(self, 'Meta', None)
         page_size = request.GET.get('page_size', None)
@@ -403,7 +412,7 @@ class DataGrid(object):
         sorting order and columns list, as well as any state a subclass
         may need.
         """
-        
+
         if self.state_loaded:
             return
 
@@ -432,21 +441,13 @@ class DataGrid(object):
                 pass
 
 
-        # Figure out the columns we're going to display
-        # We're also going to calculate the column widths based on the
-        # shrink and expand values.
-        # colnames_str = self.request.GET.get('columns', profile_columns_list)
+        columns = self.all_columns
 
-        # if colnames_str:
-        #     colnames = colnames_str.split(',')
-        # else:
-        colnames = self.all_columns
-            # colnames_str = ",".join(self.default_columns)
 
         expand_columns = []
         normal_columns = []
-        
-        for colname in colnames:
+
+        for colname in columns:
             try:
                 column = getattr(self, colname.id)
             except AttributeError:
@@ -456,7 +457,7 @@ class DataGrid(object):
             if column not in self.columns:
                 self.columns.append(column)
             column.active = True
-            
+
             if column.expand:
                 # This column is requesting all remaining space. Save it for
                 # later so we can tell how much to give it. Each expanded
@@ -508,22 +509,6 @@ class DataGrid(object):
         # as well.
         if self.load_extra_state(profile):
             profile_dirty = True
-
-
-        # Now that we have all that, figure out if we need to save new
-        # settings back to the profile.
-        # if profile:
-        #     if self.profile_columns_field and \
-        #        colnames_str != profile_columns_list:
-        #         setattr(profile, self.profile_columns_field, colnames_str)
-        #         profile_dirty = True
-        # 
-        #     if self.profile_sort_field and sort_str != profile_sort_list:
-        #         setattr(profile, self.profile_sort_field, sort_str)
-        #         profile_dirty = True
-        # 
-        #     if profile_dirty:
-        #         profile.save()
 
         self.state_loaded = True
 
@@ -595,7 +580,6 @@ class DataGrid(object):
             # IDs and then fetch the actual details from that.
             id_list = list(self.page.object_list.distinct().values_list(
                 'pk', flat=True))
-
             # Make sure to unset the order. We can't meaningfully order these
             # results in the query, as what we really want is to keep it in
             # the order specified in id_list, and we certainly don't want
@@ -603,7 +587,6 @@ class DataGrid(object):
             # down). We'll set the order properly in a minute.
             self.page.object_list = self.post_process_queryset(
                 self.queryset.model.objects.filter(pk__in=id_list).order_by())
-
         if use_select_related:
             self.page.object_list = \
                 self.page.object_list.select_related(depth=1)
@@ -621,6 +604,7 @@ class DataGrid(object):
         else:
             # Grab the whole list at once. We know it won't be too large,
             # and it will prevent one query per row.
+
             object_list = list(self.page.object_list)
 
         for obj in object_list:

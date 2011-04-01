@@ -30,14 +30,56 @@ from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.http import HttpRequest
 
-from djblets.datagrid.grids import Column, DataGrid, DateTimeSinceColumn
-from djblets.util.testing import TestCase
+from datagrid.grids import ( Column, DataGrid, DateTimeSinceColumn,
+                                NonDatabaseColumn)
+from datagrid.adapters import DictionaryQuerySetAdapter
+from django.test.testcases import TestCase
 
+def id_mod_4(obj):
+    return obj.id % 4
 
 def populate_groups():
     for i in range(1, 100):
         group = Group(name="Group %02d" % i)
         group.save()
+
+class DataGridWithDictonaryData(DataGrid):
+    objid = Column("ID", link=True, sortable=True, field_name="id")
+    name = Column("Group Name", link=True, sortable=True, expand=True)
+    custom = NonDatabaseColumn("Second Title",
+                               sortable=True, link=True)
+    def __init__(self, request):
+        DataGrid.__init__(self, request,
+                            DictionaryQuerySetAdapter(list(Group.objects.values())),
+                            "All Groups")
+        self.default_sort = "objid"
+        self.default_columns = [
+            "objid", "name"
+        ]
+
+class DataGridWithValuesQuery(DataGrid):
+    objid = Column("ID", link=True, sortable=True, field_name="id")
+    name = Column("Group Name", link=True, sortable=True, expand=True)
+    custom = NonDatabaseColumn("Second Title",
+                               sortable=True, data_func=id_mod_4, link=True)
+    def __init__(self, request):
+        DataGrid.__init__(self, request, Group.objects.values(), "All Groups")
+        self.default_sort = "objid"
+        self.default_columns = [
+            "objid", "name"
+        ]
+
+class DataGridWithNoDbColumns(DataGrid):
+    objid = Column("ID", link=True, sortable=True, field_name="id")
+    name = Column("Group Name", link=True, sortable=True, expand=True)
+    custom = NonDatabaseColumn("Second Title",
+                               sortable=True, data_func=id_mod_4, link=True)
+    def __init__(self, request):
+        DataGrid.__init__(self, request, Group.objects.all(), "All Groups")
+        self.default_sort = "objid"
+        self.default_columns = [
+            "objid", "name"
+        ]
 
 
 class GroupDataGrid(DataGrid):
@@ -46,7 +88,7 @@ class GroupDataGrid(DataGrid):
 
     def __init__(self, request):
         DataGrid.__init__(self, request, Group.objects.all(), "All Groups")
-        self.default_sort = []
+        self.default_sort = "objid"
         self.default_columns = [
             "objid", "name"
         ]
@@ -73,6 +115,7 @@ class ColumnsTest(TestCase):
 
 
 class DataGridTest(TestCase):
+    grid_class = GroupDataGrid
     def setUp(self):
         self.old_auth_profile_module = getattr(settings, "AUTH_PROFILE_MODULE",
                                                None)
@@ -81,7 +124,7 @@ class DataGridTest(TestCase):
         self.user = User(username="testuser")
         self.request = HttpRequest()
         self.request.user = self.user
-        self.datagrid = GroupDataGrid(self.request)
+        self.datagrid = self.grid_class(self.request)
 
     def tearDown(self):
         settings.AUTH_PROFILE_MODULE = self.old_auth_profile_module
@@ -122,14 +165,9 @@ class DataGridTest(TestCase):
         # Exercise the code paths when rendering
         self.datagrid.render_listview()
 
-
-    def testCustomColumns(self):
-        """Testing datagrids with custom column orders"""
-        self.request.GET['columns'] = "objid"
-        self.datagrid.load_state()
-
-        self.assertEqual(len(self.datagrid.rows), self.datagrid.paginate_by)
-        self.assertEqual(len(self.datagrid.rows[0]['cells']), 1)
-
-        # Exercise the code paths when rendering
-        self.datagrid.render_listview()
+#class GridWithNoDbColumnsTest(DataGridTest):
+#    grid_class = DataGridWithNoDbColumns
+#class DataGridWithValuesQueryTest(DataGridTest):
+#    grid_class = DataGridWithValuesQuery
+class GridDictionaryTest(DataGridTest):
+    grid_class = DataGridWithDictonaryData

@@ -1,4 +1,5 @@
 *.pyc
+*~
 django_datagrid.egg-info/*
 build/*
 dist/*
