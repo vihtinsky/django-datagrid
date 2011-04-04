@@ -35,6 +35,8 @@ from datagrid.grids import ( Column, DataGrid, DateTimeSinceColumn,
 from datagrid.adapters import DictionaryQuerySetAdapter
 from django.test.testcases import TestCase
 
+from mongo_test import MongoDataGridTest
+
 def id_mod_4(obj):
     return obj.id % 4
 
