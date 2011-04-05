@@ -599,7 +599,7 @@ class DataGrid(object):
             # the database to do any special ordering (possibly slowing things
             # down). We'll set the order properly in a minute.
             self.page.object_list = self.post_process_queryset(
-                self.queryset.model.objects.filter(pk__in=id_list).order_by())
+                self.queryset.filter_pk(id_list))
         if use_select_related:
             self.page.object_list = \
                 self.page.object_list.select_related(depth=1)
@@ -611,7 +611,6 @@ class DataGrid(object):
             # expect.
             index = dict([(id, pos) for (pos, id) in enumerate(id_list)])
             object_list = [None] * len(id_list)
-
             for obj in list(self.page.object_list):
                 object_list[index[obj.id]] = obj
         else:

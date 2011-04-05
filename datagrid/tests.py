@@ -202,6 +202,7 @@ class GridWithNoDbColumnsTest(DataGridTest):
         # Exercise the code paths when rendering
         self.datagrid.render_listview()
 
+
 class GridWithNoDbColumnsTestWithNoExtra(DataGridTest):
     grid_class = DataGridWithNoDbColumnsNoExtra
 
@@ -210,3 +211,4 @@ class DataGridWithValuesQueryTest(GridWithNoDbColumnsTest):
 
 class GridDictionaryTest(DataGridTest):
     grid_class = DataGridWithDictonaryData
+

@@ -6,7 +6,7 @@ from django.http import HttpRequest
 
 from datagrid.grids import ( Column, DataGrid, DateTimeSinceColumn,
                                 NonDatabaseColumn)
-from datagrid.adapters import DictionaryQuerySetAdapter
+from datagrid.mongo_adapter import MongoQuerySetAdapter
 from django.test.testcases import TestCase
 
 def id_mod_4(obj):
@@ -31,7 +31,7 @@ class DataGridWithMongoCursor(DataGrid):
         db = con['test_datagrids_db']
 
         DataGrid.__init__(self, request,
-                            DictionaryQuerySetAdapter(list(db.groups.find())),
+                            MongoQuerySetAdapter(db.groups.find()),
                             "All Groups")
         self.default_sort = "objid"
         self.default_columns = [
@@ -86,32 +86,6 @@ class MongoDataGridTest(TestCase):
         self.assertEqual(self.datagrid.rows[0]['object'].name, "Group 99")
         self.assertEqual(self.datagrid.rows[1]['object'].name, "Group 98")
         self.assertEqual(self.datagrid.rows[2]['object'].name, "Group 97")
-
-        # Exercise the code paths when rendering
-        self.datagrid.render_listview()
-
-    def testSortNoDbAscending(self):
-        """Testing datagrids with ascending sort"""
-        self.request.GET['sort'] = "custom"
-        self.datagrid.load_state()
-        self.assertEqual(self.datagrid.sort_list, ["custom"])
-        self.assertEqual(len(self.datagrid.rows), self.datagrid.paginate_by)
-        self.assertEqual(self.datagrid.rows[0]['object'].name, "Group 04")
-        self.assertEqual(self.datagrid.rows[1]['object'].name, "Group 08")
-        self.assertEqual(self.datagrid.rows[2]['object'].name, "Group 12")
-
-        # Exercise the code paths when rendering
-        self.datagrid.render_listview()
-
-    def testSortNoDbDescending(self):
-        """Testing datagrids with ascending sort"""
-        self.request.GET['sort'] = "-custom"
-        self.datagrid.load_state()
-        self.assertEqual(self.datagrid.sort_list, ["-custom"])
-        self.assertEqual(len(self.datagrid.rows), self.datagrid.paginate_by)
-        self.assertEqual(self.datagrid.rows[0]['object'].name, "Group 03")
-        self.assertEqual(self.datagrid.rows[1]['object'].name, "Group 07")
-        self.assertEqual(self.datagrid.rows[2]['object'].name, "Group 11")
 
         # Exercise the code paths when rendering
         self.datagrid.render_listview()

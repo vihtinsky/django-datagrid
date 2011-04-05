@@ -2,6 +2,10 @@ from datagrid.grids import *
 from blogango.models import BlogEntry
 from django.contrib.auth.models import Group
 
+from datagrid.mongo_adapter import MongoQuerySetAdapter
+
+from pymongo import Connection
+
 def grid_data_func(value):
     return value.upper()
 
@@ -21,7 +25,10 @@ class DataGridWithDictonaryData(DataGrid):
                                extra_sort="id-id/4*4",
                                )
     def __init__(self, request):
-        DataGrid.__init__(self, request, Group.objects.values(), "All Groups")
+        con = Connection()
+        db = con['test_datagrids_db']
+
+        DataGrid.__init__(self, request, MongoQuerySetAdapter(db.groups.find()), "All Groups")
         self.default_sort = "objid"
         self.default_columns = [
             "objid", "name"
@@ -63,7 +70,7 @@ class BlogGrid(DataGrid):
 
 def blog_grid(request):
     posts = BlogEntry.objects.all()
-    blog_grid = BlogGrid(request=request, queryset=posts, title='Blog Grid View')
+#    blog_grid = BlogGrid(request=request, queryset=posts, title='Blog Grid View')
     blog_grid = DataGridWithDictonaryData(request=request)
 
     return blog_grid.render_to_response('blog_grid/blog_grid.html', {'blog_grid': blog_grid})

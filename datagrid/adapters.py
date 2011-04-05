@@ -14,6 +14,9 @@ class DjangoQuerySetAdapter(QuerySetAdapter):
     def __getattr__( self, name ):
         return getattr( self.__subject, name )
 
+    def filter_pk(self, ids_list):
+        return self.__subject.model.objects.filter(pk__in=ids_list).order_by()
+
     def extra_sort(self, *field_names):
         if not field_names:
             return self
@@ -49,7 +52,7 @@ class DictionaryQuerySetAdapter(QuerySetAdapter):
     def count(self):
         return len(self.list)
 
-    def filter(self, *args, **kwargs):
+    def filter_pk(self, ids_list):
         return self
 
     def values_list(self, *fields, **kwargs):
@@ -79,6 +82,8 @@ class DictionaryQuerySetAdapter(QuerySetAdapter):
         return self
 
     def extra_sort(self, *field_names):
+        logging.error("""Sort by nonDb column with DictionaryQuerySetAdapter
+                         not supported. Please add with row to dictionary """)
         return self
 
 class Struct:
