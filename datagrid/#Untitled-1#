@@ -1,0 +1,5 @@
+def populate_groups():
+    for i in range(1, 100):
+        k = random.randint(1,5)
+        group = Group(name="Group %02d" % k)
+        group.save()

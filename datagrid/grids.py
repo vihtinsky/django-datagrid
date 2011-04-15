@@ -100,55 +100,43 @@ class Column(object):
         if self.sortable:
             sort_list = self.datagrid.sort_list
 
-            if sort_list:
-                rev_column_id = "-%s" % self.id
+            rev_column_id = "-%s" % self.id
+            new_column_id = self.id
+            cur_column_id = ""
+            if self.id in sort_list:
+                # This column is currently being sorted in
+                # ascending order.
+                sort_direction = self.SORT_ASCENDING
+                cur_column_id = self.id
+                new_column_id = rev_column_id
+            elif rev_column_id in sort_list:
+                # This column is currently being sorted in
+                # descending order.
+                sort_direction = self.SORT_DESCENDING
+                cur_column_id = rev_column_id
                 new_column_id = self.id
-                cur_column_id = ""
 
-                if self.id in sort_list:
-                    # This column is currently being sorted in
-                    # ascending order.
-                    sort_direction = self.SORT_ASCENDING
-                    cur_column_id = self.id
-                    new_column_id = rev_column_id
-                elif rev_column_id in sort_list:
-                    # This column is currently being sorted in
-                    # descending order.
-                    sort_direction = self.SORT_DESCENDING
-                    cur_column_id = rev_column_id
-                    new_column_id = self.id
-
-                if cur_column_id:
-                    in_sort = True
-                    sort_primary = (sort_list[0] == cur_column_id)
-
-                    if not sort_primary:
-                        # If this is not the primary column, we want to keep
-                        # the sort order intact.
-                        new_column_id = cur_column_id
-
-                    # Remove this column from the current location in the list
-                    # so we can move it to the front of the list.
-                    sort_list.remove(cur_column_id)
-
-                # Insert the column name into the beginning of the sort list.
-                sort_list.insert(0, new_column_id)
-            else:
-                # There's no sort list to begin with. Make this column
-                # the only entry.
-                sort_list = [self.id]
-
-            # We can only support two entries in the sort list, so truncate
-            # this.
-            # del(sort_list[2:])
-            del(sort_list[1:])
+            if cur_column_id:
+                in_sort = True
+                sort_primary = (sort_list[0] == cur_column_id)
 
             url_prefix = "?%ssort=" % self.get_url_params_except("sort",
                                                                  "datagrid-id",
                                                                  "gridonly",
                                                                  "columns")
-            unsort_url = url_prefix + ','.join(sort_list[1:])
-            sort_url   = url_prefix + ','.join(sort_list)
+            unsort = [i for i in sort_list if i !=cur_column_id]
+            unsort_url = url_prefix + ','.join(unsort)
+            if sort_primary:
+                unsort.insert(0, new_column_id)
+            else:
+                unsort.append(new_column_id)
+
+            if isinstance(self,NonDatabaseColumn):
+                if len(unsort)>1:
+                    in_sort = False
+                sort_url   = url_prefix + new_column_id
+            else:
+                sort_url   = url_prefix + ",".join(unsort)
 
         return mark_safe(render_to_string(
             self.datagrid.column_header_template, {
@@ -508,8 +496,7 @@ class DataGrid(object):
         if sort_str:
             self.sort_list = sort_str.split(',')
         else:
-            self.sort_list = [self.default_sort]
-            sort_str = ",".join(self.sort_list)
+            self.sort_list = []
 
 
         # A subclass might have some work to do for loading and saving
@@ -566,10 +553,19 @@ class DataGrid(object):
                 column = getattr(self,base_sort_item)
                 if column.extra_sort:
                     extra_sort_list.append({sort_item:column.extra_sort})
-        if sort_list:
-            query = query.order_by(*sort_list)
+
         if extra_sort_list:
             query = query.extra_sort(*extra_sort_list)
+
+        if sort_list:
+            query = query.order_by(*sort_list)
+        if not ( sort_list or extra_sort_list):
+            query = query.order_by()
+
+
+
+
+
         self.paginator = Paginator(query, self.paginate_by,
                                            self.paginate_orphans)
         page_num = self.request.GET.get('page', 1)
