@@ -1,7 +1,7 @@
 from datagrid.grids import *
 from blogango.models import BlogEntry
 from django.contrib.auth.models import Group
-
+from blogango.models import Blog
 from datagrid.mongo_adapter import MongoQuerySetAdapter
 
 from pymongo import Connection
@@ -18,7 +18,7 @@ def non_db_col_value(obj):
 
 class DataGridWithDictonaryData(DataGrid):
     objid = Column("ID", link=True, sortable=True, field_name="id")
-    name = Column("Group Name", link=True, sortable=True, expand=True)
+    title = Column("Group Name", link=True, sortable=True, expand=True)
     custom = NonDatabaseColumn("Second Title",
                                sortable=True, data_func=non_db_col_value,
                                link=True,
@@ -28,7 +28,7 @@ class DataGridWithDictonaryData(DataGrid):
         con = Connection()
         db = con['test_datagrids_db']
 
-        DataGrid.__init__(self, request, MongoQuerySetAdapter(db.groups.find()), "All Groups")
+        DataGrid.__init__(self, request, Blog.objects.all(), "All Groups")
         self.default_sort = "objid"
         self.default_columns = [
             "objid", "name"
