@@ -1,21 +1,28 @@
+""" """  # TODO module docstring
+
+import logging
 from functools import cmp_to_key
 
 
 class ManagerAdapter(object):
-    objects=None
+    """ """  # TODO docstring
+
+    objects = None
+
 
 class QuerySetAdapter(object):
+    """ """  # TODO docstring describing the purpose of empty class
     pass
 
 
 class DjangoQuerySetAdapter(QuerySetAdapter):
-    """Decorator to use django query sets"""
+    """Adapter for Django queryset used in datagrid"""  # TODO replace "datagrid" with exact class where adapter is used
 
-    def __init__( self, subject ):
+    def __init__(self, subject):
         self.__subject = subject
 
-    def __getattr__( self, name ):
-        return getattr( self.__subject, name )
+    def __getattr__(self, name):
+        return getattr(self.__subject, name)
 
     def filter_pk(self, ids_list):
         return self.__subject.model.objects.filter(pk__in=ids_list).order_by()
@@ -26,7 +33,7 @@ class DjangoQuerySetAdapter(QuerySetAdapter):
         field = field_names[0]
         if field.keys()[0].startswith("-"):
             f = field.keys()[0]
-            select = {f[1:]:field[f]}
+            select = {f[1:]: field[f]}
             self.__subject = self.__subject.extra(select=select)
         else:
             self.__subject = self.__subject.extra(select=field)
@@ -36,14 +43,15 @@ class DjangoQuerySetAdapter(QuerySetAdapter):
 
 
 class DictionaryQuerySetAdapter(QuerySetAdapter):
-    """Decorator to use datagrids with list of dictonaries"""
-    def __init__(self, list):
+    """Adapter for list of dictonaries"""
+
+    def __init__(self, list):  # FIXME redefinition of standard Python object list
         self.model = ManagerAdapter()
         self.model.objects = self
         self.list = list
 
     def __getitem__(self, items):
-        if isinstance(items,int):
+        if isinstance(items, int):
             i = self.list[items]
             return Struct(**i)
         self.list = self.list.__getitem__(items)
@@ -73,7 +81,8 @@ class DictionaryQuerySetAdapter(QuerySetAdapter):
 
     def sort_using_cmp(self, sort_keys, reverse):
         asc = reverse['asc']
-        def dict_compare(x,y):
+
+        def dict_compare(x, y):
             for index in sort_keys:
                 if x[index] > y[index]:
                     ret = 1 if index in asc else -1
@@ -82,7 +91,8 @@ class DictionaryQuerySetAdapter(QuerySetAdapter):
                     ret = -1 if index in asc else 1
                     return ret
             return 0
-        return cmp_to_key(dict_compare)
+
+        return cmp_to_key(dict_compare)  # FIXME compatibility with Python 2.6
 
     def order_by(self, *field_names):
         if not field_names:
@@ -93,21 +103,23 @@ class DictionaryQuerySetAdapter(QuerySetAdapter):
         for field in field_names:
             if field.startswith("-"):
                 sort_keys.append(field[1:])
-                reverse["desc"] = reverse.get("desc",[])
+                reverse["desc"] = reverse.get("desc", [])
                 reverse["desc"].append(field)
             else:
                 sort_keys.append(field)
-                reverse["asc"] = reverse.get("asc",[])
+                reverse["asc"] = reverse.get("asc", [])
                 reverse["asc"].append(field)
 
-        if len(reverse.keys())>1:
+        if len(reverse.keys()) > 1:
             key_func = self.sort_using_cmp(sort_keys, reverse)
         else:
-            key_func = lambda item : [ item[i] for i in sort_keys];
+            key_func = lambda item: [item[i] for i in sort_keys]
 
-        self.list = sorted(self.list,
-                               key=key_func,
-                               reverse=(reverse.keys()[0]=="desc"))
+        self.list = sorted(
+            self.list,
+            key=key_func,
+            reverse=(reverse.keys()[0] == "desc")
+        )
         return self
 
     def extra_sort(self, *field_names):
@@ -115,6 +127,15 @@ class DictionaryQuerySetAdapter(QuerySetAdapter):
                          not supported. Please add with row to dictionary """)
         return self
 
+
 class Struct:
+    # TODO verify docstring and doctests
+    """Object presentation of dictionaries
+    >>> s = Struct({'a+b': 'c', 'c': 3})
+    >>> s['a+b']
+    'c'
+    >>> s.c
+    3
+    """
     def __init__(self, **entries):
         self.__dict__.update(entries)
