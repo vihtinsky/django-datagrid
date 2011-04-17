@@ -2,9 +2,9 @@ from datagrid.grids import *
 from blogango.models import BlogEntry
 from django.contrib.auth.models import Group
 from blogango.models import Blog
-from datagrid.mongo_adapter import MongoQuerySetAdapter
 
-from pymongo import Connection
+
+
 
 def grid_data_func(value):
     return value.upper()
@@ -19,16 +19,16 @@ def non_db_col_value(obj):
 class DataGridWithDictonaryData(DataGrid):
     objid = Column("ID", link=True, sortable=True, field_name="id")
     title = Column("Group Name", link=True, sortable=True, expand=True)
-    custom = NonDatabaseColumn("Second Title",
+    custom = Column("Group Name2", link=True, sortable=True, expand=True)
+    """custom = NonDatabaseColumn("Second Title",
                                sortable=True, data_func=non_db_col_value,
                                link=True,
                                extra_sort="id-id/4*4",
                                )
+   """
     def __init__(self, request):
-        con = Connection()
-        db = con['test_datagrids_db']
-
-        DataGrid.__init__(self, request, Blog.objects.all(), "All Groups")
+        q =  Blog.objects.extra(select={'custom':"id-id/4*4"}).all()
+        DataGrid.__init__(self, request,list(q.values()) , "All Groups")
         self.default_sort = "objid"
         self.default_columns = [
             "objid", "name"

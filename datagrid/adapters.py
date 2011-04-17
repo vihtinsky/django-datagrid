@@ -1,3 +1,6 @@
+from functools import cmp_to_key
+
+
 class ManagerAdapter(object):
     objects=None
 
@@ -68,17 +71,40 @@ class DictionaryQuerySetAdapter(QuerySetAdapter):
     def __len__(self):
         return len(self.list)
 
+    def sort_using_cmp(self, sort_keys, reverse):
+        asc = reverse['asc']
+        def dict_compare(x,y):
+            for index in sort_keys:
+                if x[index] > y[index]:
+                    ret = 1 if index in asc else -1
+                    return ret
+                if x[index] < y[index]:
+                    ret = -1 if index in asc else 1
+                    return ret
+            return 0
+        return cmp_to_key(dict_compare)
+
     def order_by(self, *field_names):
         if not field_names:
             return self
-        index = field_names[0]
-        reverse = False
-        if index.startswith("-"):
-            reverse = True
-            index = index[1:]
+        sort_keys = []
+        reverse = {}
+        for field in field_names:
+            if field.startswith("-"):
+                sort_keys.append(field[1:])
+                reverse["desc"] = reverse.get("desc",[])
+                reverse["desc"].append(field)
+            else:
+                sort_keys.append(field)
+                reverse["asc"] = reverse.get("asc",[])
+                reverse["asc"].append(field)
+        if len(reverse.keys())>1:
+            key_func = self.sort_using_cmp(sort_keys, reverse)
+        else:
+            key_func = lambda item : [ item[i] for i in sort_keys];
         self.list = sorted(self.list,
-                               key=lambda item : item[index],
-                               reverse=reverse)
+                               key=key_func,
+                               reverse=(reverse.keys()[0]=="desc"))
         return self
 
     def extra_sort(self, *field_names):
