@@ -89,6 +89,7 @@ class DictionaryQuerySetAdapter(QuerySetAdapter):
             return self
         sort_keys = []
         reverse = {}
+
         for field in field_names:
             if field.startswith("-"):
                 sort_keys.append(field[1:])
@@ -98,10 +99,12 @@ class DictionaryQuerySetAdapter(QuerySetAdapter):
                 sort_keys.append(field)
                 reverse["asc"] = reverse.get("asc",[])
                 reverse["asc"].append(field)
+
         if len(reverse.keys())>1:
             key_func = self.sort_using_cmp(sort_keys, reverse)
         else:
             key_func = lambda item : [ item[i] for i in sort_keys];
+
         self.list = sorted(self.list,
                                key=key_func,
                                reverse=(reverse.keys()[0]=="desc"))
