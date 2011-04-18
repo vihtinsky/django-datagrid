@@ -1,4 +1,5 @@
-""" """  # TODO module docstring
+"""Adapters to use different data source with grid.Datagrid besides
+django.db.models.query.QuerySet"""
 
 import logging
 
@@ -24,18 +25,18 @@ def cmp_to_key(mycmp):
 
 
 class ManagerAdapter(object):
-    """ """  # TODO docstring
+    """Adapter for Django model Manager. Used in DictionaryQuerySetAdapter"""
 
     objects = None
 
 
 class QuerySetAdapter(object):
-    """ """  # TODO docstring describing the purpose of empty class
+    """Base class for all adapters. Used in __init__ of grid.Datagrid """
     pass
 
 
 class DjangoQuerySetAdapter(QuerySetAdapter):
-    """Adapter for Django queryset used in datagrid"""  # TODO replace "datagrid" with exact class where adapter is used
+    """Adapter for Django queryset used in grid.DataGrid"""
 
     def __init__(self, subject):
         self.__subject = subject
@@ -64,23 +65,23 @@ class DjangoQuerySetAdapter(QuerySetAdapter):
 class DictionaryQuerySetAdapter(QuerySetAdapter):
     """Adapter for list of dictonaries"""
 
-    def __init__(self, list):  # FIXME redefinition of standard Python object list
+    def __init__(self, objects_list):
         self.model = ManagerAdapter()
         self.model.objects = self
-        self.list = list
+        self.objects_list = objects_list
 
     def __getitem__(self, items):
         if isinstance(items, int):
-            i = self.list[items]
+            i = self.objects_list[items]
             return Struct(**i)
-        self.list = self.list.__getitem__(items)
+        self.objects_list = self.objects_list.__getitem__(items)
         return self
 
     def distinct(self, true_or_false=True):
         return self
 
     def count(self):
-        return len(self.list)
+        return len(self.objects_list)
 
     def filter_pk(self, ids_list):
         return self
@@ -92,11 +93,11 @@ class DictionaryQuerySetAdapter(QuerySetAdapter):
                 field = "id"
         else:
             return self
-        list = [i[field] for i in self.list]
-        return list
+        obj_list = [i[field] for i in self.objects_list]
+        return obj_list
 
     def __len__(self):
-        return len(self.list)
+        return len(self.objects_list)
 
     def sort_using_cmp(self, sort_keys, reverse):
         asc = reverse['asc']
@@ -111,7 +112,7 @@ class DictionaryQuerySetAdapter(QuerySetAdapter):
                     return ret
             return 0
 
-        return cmp_to_key(dict_compare)  # FIXME compatibility with Python 2.6
+        return cmp_to_key(dict_compare)
 
     def order_by(self, *field_names):
         if not field_names:
@@ -134,8 +135,8 @@ class DictionaryQuerySetAdapter(QuerySetAdapter):
         else:
             key_func = lambda item: [item[i] for i in sort_keys]
 
-        self.list = sorted(
-            self.list,
+        self.objects_list = sorted(
+            self.objects_list,
             key=key_func,
             reverse=(reverse.keys()[0] == "desc")
         )
@@ -148,10 +149,10 @@ class DictionaryQuerySetAdapter(QuerySetAdapter):
 
 
 class Struct:
-    # TODO verify docstring and doctests
     """Object presentation of dictionaries
-    >>> s = Struct({'a+b': 'c', 'c': 3})
-    >>> s['a+b']
+    >>> d = {'a+b': 'c', 'c': 3}
+    >>> s = Struct(**d)
+    >>> getattr(s,'a+b')
     'c'
     >>> s.c
     3
