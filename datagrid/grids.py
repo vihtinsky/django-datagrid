@@ -37,10 +37,12 @@ class Column(object):
                  field_name=None, db_field=None,
                  image_url=None, image_width=None, image_height=None,
                  image_alt="", shrink=False, expand=False, sortable=False,
+                 default="",
                  default_sort_dir=SORT_DESCENDING, link=False,
                  link_func=None, cell_clickable=False, css_class="", data_func=None):
         self.id = None
         self.datagrid = None
+        self.default = default
         self.field_name = field_name
         self.db_field = db_field or field_name
         self.label = label
@@ -215,7 +217,7 @@ class Column(object):
                     return value
         else:
             # value = getattr(obj, self.field_name)
-            value = getattr(obj, self.db_field)
+            value = getattr(obj, self.db_field, self.default)
         if self.data_func:
             value = self.data_func(value)
         if callable(value):
