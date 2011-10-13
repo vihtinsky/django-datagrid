@@ -494,7 +494,8 @@ class DataGrid(object):
 
         # Now get the sorting order for the columns.
         sort_str = self.request.GET.get('sort', profile_sort_list)
-
+        if not sort_str:
+            sort_str = self.default_sort
         if sort_str:
             self.sort_list = sort_str.split(',')
         else:
