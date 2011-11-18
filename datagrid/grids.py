@@ -365,10 +365,11 @@ class DataGrid(object):
                 if not column.db_field and \
                   not isinstance(column, NonDatabaseColumn):
                     column.db_field = column.field_name
+                    column.sort_field = column.field_name
                 if column.db_field:
                     self.db_field_map[column.id] = column.db_field
-                if column.sort_field:
-                    self.sort_field_map[column.id] = column.sort_field
+
+                self.sort_field_map[column.id] = column.sort_field
 
         self.all_columns.sort(key=lambda x: x.creation_counter)
         self.columns = self.all_columns
