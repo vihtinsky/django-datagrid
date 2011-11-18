@@ -37,7 +37,7 @@ class Column(object):
                  field_name=None, db_field=None,
                  image_url=None, image_width=None, image_height=None,
                  image_alt="", shrink=False, expand=False, sortable=False,
-                 default="",
+                 default="", sort_field=None,
                  default_sort_dir=SORT_DESCENDING, link=False,
                  link_func=None, cell_clickable=False, css_class="", data_func=None):
         self.id = None
@@ -45,6 +45,7 @@ class Column(object):
         self.default = default
         self.field_name = field_name
         self.db_field = db_field or field_name
+        self.sort_field = sort_field or self.db_field
         self.label = label
         # self.detailed_label = detailed_label or self.label
         self.image_url = image_url
@@ -318,6 +319,7 @@ class DataGrid(object):
         self.columns = []
         self.all_columns = []
         self.db_field_map = {}
+        self.sort_field_map = {}
         self.paginator = None
         self.page = None
         self.sort_list = None
@@ -365,6 +367,8 @@ class DataGrid(object):
                     column.db_field = column.field_name
                 if column.db_field:
                     self.db_field_map[column.id] = column.db_field
+                if column.sort_field:
+                    self.sort_field_map[column.id] = column.sort_field
 
         self.all_columns.sort(key=lambda x: x.creation_counter)
         self.columns = self.all_columns
@@ -542,7 +546,7 @@ class DataGrid(object):
                 prefix = ""
 
             if sort_item and base_sort_item in self.db_field_map:
-                db_field = self.db_field_map[base_sort_item]
+                db_field = self.sort_field_map[base_sort_item]
                 sort_list.append(prefix + db_field)
 
                 # Lookups spanning tables require that we query from those
