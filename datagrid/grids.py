@@ -394,16 +394,9 @@ class DataGrid(object):
         self.pagination_control_widget = getattr(meta, 'pagination_control_widget', False)
         self.get_pdf_link = getattr(meta, 'get_pdf_link', False)
         self.get_csv_link = getattr(meta, 'get_csv_link', False)
-        self.filter_fields = getattr(meta, 'filter_fields', [])
+        self.filtering_options = getattr(meta, 'filtering_options', {})
+        self.filter_fields = self.filtering_options.keys()
         self.search_fields = getattr(meta, 'search_fields', [])
-        self.filtering_options = {}
-        if self.filter_fields:
-            filtering_options = {}
-            #TODO: This is very costly for large querysets so we may want to cache this, or do this in SQL
-            for field in self.filter_fields:
-                filtering_options[field] = set([getattr(el, field) for el in queryset])
-            self.filtering_options = filtering_options
-
 
 
     def load_state(self):
@@ -440,6 +433,8 @@ class DataGrid(object):
             except SiteProfileNotAvailable:
                 pass
             except ObjectDoesNotExist:
+                pass
+            except:
                 pass
 
 
@@ -666,6 +661,12 @@ class DataGrid(object):
         for field in self.filter_fields:
             query = self.request.GET.get(field, None)
             if query:
+                if query.startswith("!"):
+                    opts = self.filtering_options[field]
+                    if opts.inverse:
+                        query = query[1:]
+                        self.queryset = queryset.exclude(**{field: query})
+                        return
                 self.queryset = queryset.filter(**{field: query})
 
 
@@ -762,3 +763,11 @@ class DataGrid(object):
     @staticmethod
     def link_to_value(obj, value):
         return value.get_absolute_url()
+
+
+class FilterOptions(object):
+    def __init__(self, title, values, inverse=False):
+        self.title = title
+        self.inverse = inverse
+        self.values = values
+        self.selected = None

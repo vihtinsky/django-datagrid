@@ -71,8 +71,15 @@ def get_search_form(context):
 
 @register.inclusion_tag('datagrid/get_filter_form.html', takes_context=True)
 def get_filter_form(context):
-    #TODO
-
+    request = context['request']
+    for field, options in context['filtering_options']:
+        options.selected = None
+        val = request.GET.get(field, None)
+        if val is not None:
+            try:
+                options.selected = int(val)
+            except:
+                options.selected = val
     return context
 
 
